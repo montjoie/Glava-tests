@@ -1,0 +1,18 @@
+metadata:
+  name: Gentoo kselftests handler
+  format: Lava-Test Test Definition 1.0
+  description: "Run kselftests"
+  version: 1.0
+  scope:
+    - functional
+parse:
+  pattern: "^selftests:\\s(?P<test_case_id>\\S+)\\s[[](?P<result>(FAIL|PASS|SKIP))[]]"
+  fixupdict:
+    PASS: pass
+    FAIL: fail
+    SKIP: skip
+run:
+    steps:
+      - lava-test-set start kselftests
+      - ./kselftests.sh
+      - lava-test-set stop kselftests
