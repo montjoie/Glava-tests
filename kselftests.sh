@@ -22,6 +22,8 @@ if [ ! -e /root/kselftest.tar.gz ];then
 	;;
 	armv7l)
 		KSARCH=arm
+		echo "SKIP: kselftests are disabled on ARM"
+		exit 0
 	;;
 	*)
 		echo "SKIP: no kselftests for $(uname -m) arch"
