@@ -1,0 +1,12 @@
+metadata:
+  name: Gentoo portage handler
+  format: Lava-Test Test Definition 1.0
+  description: "Run portage"
+  version: 1.0
+  scope:
+    - functional
+run:
+    steps:
+      - lava-test-set start portage
+      - ./portage.sh
+      - lava-test-set stop portage
