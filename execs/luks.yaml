@@ -1,0 +1,12 @@
+metadata:
+  name: Gentoo luks handler
+  format: Lava-Test Test Definition 1.0
+  description: "Run LUKS"
+  version: 1.0
+  scope:
+    - functional
+run:
+    steps:
+      - lava-test-set start luks
+      - ./luks.sh
+      - lava-test-set stop luks

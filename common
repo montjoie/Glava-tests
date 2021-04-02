@@ -1,0 +1,117 @@
+TEST_PREFIX=""
+
+if [ -e /dev/shm ];then
+	OUTPUT_DIR=/dev/shm/output
+else
+	OUTPUT_DIR=/tmp/output
+fi
+mkdir -p $OUTPUT_DIR
+chmod 755 $OUTPUT_DIR
+echo "DEBUG: OUTPUT_DIR is $OUTPUT_DIR"
+
+if [ -e /rootfs.version ];then
+	echo "=============================================="
+	cat /rootfs.version
+	echo "=============================================="
+	rm /rootfs.version
+fi
+
+# Print the start of a test
+# register the current dmesg
+start_test()
+{
+	echo "=============================================="
+	if [ ! -z "$1" ];then
+		echo "$1"
+	fi
+	echo "=============================================="
+	dmesg --console-off
+	date +%s > $OUTPUT_DIR/timestamp.test.start
+	dmesg > $OUTPUT_DIR/dmesg.test.start
+	RET=$?
+	if [ $RET -ne 0 ];then
+		echo "ERROR: fail to write dmesg (err=$RET)"
+		du -ah $OUTPUT_DIR/
+	fi
+}
+
+# Print the end of a test
+# Print all kernel messages that appears durint the test
+result() {
+	SLEEP=0
+	result=$1
+	shift
+
+	case $1 in
+	--sleep)
+		shift
+		SLEEP=$1
+		shift
+	;;
+	esac
+	date +%s > $OUTPUT_DIR/timestamp.test.result
+	TSTAMP_START=$(cat $OUTPUT_DIR/timestamp.test.start)
+	TSTAMP_RESULT=$(cat $OUTPUT_DIR/timestamp.test.result)
+	TSTAMP_DIFF=$(($TSTAMP_RESULT-$TSTAMP_START))
+	echo "============================================== TIME=$TSTAMP_DIFF"
+	# sleep to let dmesg output flushing
+	if [ $SLEEP -ge 1 ];then
+		sleep $SLEEP
+	fi
+	dmesg > $OUTPUT_DIR/dmesg.test.result
+	RET=$?
+	if [ $RET -ne 0 ];then
+		echo "ERROR: fail to write dmesg (err=$RET)"
+		du -ah $OUTPUT_DIR/
+	fi
+	diff -u $OUTPUT_DIR/dmesg.test.start $OUTPUT_DIR/dmesg.test.result
+	echo "=============================================="
+	if [ "$result" == 'FAIL' -o "$result" == 'fail' ];then
+		lava-test-case $* --result fail
+		return
+	fi
+	if [ "$result" == 'SKIP' -o "$result" == 'skip' ];then
+		#echo "<LAVA_SIGNAL_TESTCASE $* RESULT=SKIP>"
+		lava-test-case $* --result skip
+		return
+	fi
+	if [ $result -eq 127 ];then
+		#echo "<LAVA_SIGNAL_TESTCASE $* RESULT=SKIP>"
+		lava-test-case $* --result skip
+		return
+	fi
+	if [ $result -eq 0 ];then
+		#echo "<LAVA_SIGNAL_TESTCASE $* RESULT=pass>"
+		lava-test-case $* --result pass
+	else
+		#echo "<LAVA_SIGNAL_TESTCASE $* RESULT=FAIL>"
+		lava-test-case $* --result fail
+	fi
+}
+
+# test if config is enabled
+# parameter need to be terminated by =
+check_config() {
+	if [ ! -e /proc/config.gz ];then
+		echo "DEBUG: Cannot check config (Missing /proc/config.gz)"
+		return 0
+	fi
+	zgrep -q "^CONFIG_$1" /proc/config.gz
+	RET=$?
+	if [ $RET -eq 0 ];then
+		echo "DEBUG: $1 is enabled"
+		return 0
+	fi
+	if [ $RET -eq 127 ];then
+		gunzip -c /proc/config.gz > "$OUTPUT_DIR/config"
+		grep -q "^CONFIG_$1" "$OUTPUT_DIR/config"
+		RET=$?
+		rm "$OUTPUT_DIR/config"
+		if [ $RET -eq 0 ];then
+			echo "DEBUG: $1 is enabled"
+			return 0
+		fi
+	fi
+	return 1
+}
+
