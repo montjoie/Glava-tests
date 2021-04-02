@@ -1,0 +1,12 @@
+metadata:
+  name: Gentoo network handler
+  format: Lava-Test Test Definition 1.0
+  description: "Run network"
+  version: 1.0
+  scope:
+    - functional
+run:
+    steps:
+      - lava-test-set start network
+      - ./network.sh
+      - lava-test-set stop network
